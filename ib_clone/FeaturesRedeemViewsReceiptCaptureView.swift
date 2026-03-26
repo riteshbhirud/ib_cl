@@ -13,8 +13,8 @@ struct ReceiptCaptureView: View {
     let items: [UserOfferListItem]
     
     @State private var viewModel: RedeemViewModel
+    @State private var showRequirements = false
     @State private var showImagePicker = false
-    @State private var showCamera = false
     @State private var navigateToItemSelection = false
     @Environment(\.dismiss) private var dismiss
     
@@ -26,177 +26,148 @@ struct ReceiptCaptureView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if let image = viewModel.selectedImage {
-                // Preview captured image
-                imagePreview(image)
-            } else {
-                // Capture instructions
-                captureInstructions
-            }
+            instructionsView
         }
-        .navigationTitle("Capture Receipt")
+        .navigationTitle("Redeem at \(store.name)")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showImagePicker) {
-            ImagePicker(image: $viewModel.selectedImage, sourceType: .photoLibrary)
+        .sheet(isPresented: $showRequirements) {
+            ReceiptRequirementsView(
+                store: store,
+                onContinue: {
+                    showImagePicker = true
+                }
+            )
         }
-        .fullScreenCover(isPresented: $showCamera) {
-            ImagePicker(image: $viewModel.selectedImage, sourceType: .camera)
+        .fullScreenCover(isPresented: $showImagePicker) {
+            ReceiptPhotoCapture(
+                store: store,
+                onPhotosSelected: { images in
+                    viewModel.receiptImages = images
+                    navigateToItemSelection = true
+                }
+            )
         }
         .navigationDestination(isPresented: $navigateToItemSelection) {
             SelectItemsView(viewModel: viewModel)
         }
     }
     
-    // MARK: - Capture Instructions
-    private var captureInstructions: some View {
+    // MARK: - Instructions View
+    private var instructionsView: some View {
         VStack(spacing: AppSpacing.xxxl) {
             Spacer()
             
-            // Instructions
+            // Icon and Title
             VStack(spacing: AppSpacing.xl) {
-                Image(systemName: "doc.text.viewfinder")
-                    .font(.system(size: 80))
-                    .foregroundColor(.appSecondary)
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.appPrimary.opacity(0.15), Color.appSecondary.opacity(0.15)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 120, height: 120)
+                    
+                    Image(systemName: "doc.text.image")
+                        .font(.system(size: 56))
+                        .foregroundColor(.appPrimary)
+                }
                 
                 VStack(spacing: AppSpacing.md) {
                     Text("Capture Your Receipt")
-                        .font(.appTitle2(.bold))
+                        .font(.appTitle1(.bold))
                         .foregroundColor(.adaptiveTextPrimary)
                     
-                    Text("Make sure your entire receipt is visible and in focus")
+                    Text("Take clear photos of your complete \(store.name) receipt")
                         .font(.appCallout(.regular))
                         .foregroundColor(.adaptiveTextSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, AppSpacing.xxxl)
                 }
-                
-                // Tips
-                VStack(alignment: .leading, spacing: AppSpacing.md) {
-                    tipRow(icon: "checkmark.circle.fill", text: "Good lighting")
-                    tipRow(icon: "checkmark.circle.fill", text: "All four corners visible")
-                    tipRow(icon: "checkmark.circle.fill", text: "Date and items clear")
-                }
-                .padding(AppSpacing.xl)
-                .background(Color.adaptiveCard)
-                .cornerRadius(AppSpacing.cardCornerRadius)
-                .padding(.horizontal, AppSpacing.xl)
             }
+            
+            // Features/Tips
+            VStack(spacing: AppSpacing.lg) {
+                FeatureRow(
+                    icon: "camera.fill",
+                    title: "Clear Photos",
+                    description: "Make sure all items are visible and readable"
+                )
+                
+                FeatureRow(
+                    icon: "photo.stack.fill",
+                    title: "Multiple Photos",
+                    description: "For long receipts, take multiple photos"
+                )
+                
+                FeatureRow(
+                    icon: "lightbulb.fill",
+                    title: "Good Lighting",
+                    description: "Avoid shadows and ensure receipt is flat"
+                )
+            }
+            .padding(.horizontal, AppSpacing.xl)
             
             Spacer()
             
-            // Action Buttons
+            // Start Button
             VStack(spacing: AppSpacing.md) {
                 PrimaryButton(
-                    title: "Take Photo",
+                    title: "Capture Receipt",
                     action: {
-                        showCamera = true
-                    },
-                    style: .primary
+                        showRequirements = true
+                    }
                 )
                 
-                PrimaryButton(
-                    title: "Choose from Library",
-                    action: {
-                        showImagePicker = true
-                    },
-                    style: .outline
-                )
+                Button(action: { dismiss() }) {
+                    Text("Cancel")
+                        .font(.appCallout(.semibold))
+                        .foregroundColor(.adaptiveTextSecondary)
+                }
+                .pressAnimation()
             }
             .padding(AppSpacing.lg)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.adaptiveBackground)
     }
-    
-    private func tipRow(icon: String, text: String) -> some View {
-        HStack(spacing: AppSpacing.md) {
-            Image(systemName: icon)
-                .foregroundColor(.appSuccess)
-                .frame(width: 20)
-            
-            Text(text)
-                .font(.appCallout(.regular))
-                .foregroundColor(.adaptiveTextPrimary)
-        }
-    }
-    
-    // MARK: - Image Preview
-    private func imagePreview(_ image: UIImage) -> some View {
-        VStack(spacing: 0) {
-            // Image
-            ScrollView {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .cornerRadius(AppSpacing.radiusMedium)
-                    .padding(AppSpacing.lg)
-            }
-            .background(Color.adaptiveBackground)
-            
-            // Action Buttons
-            VStack(spacing: AppSpacing.md) {
-                Divider()
-                
-                HStack(spacing: AppSpacing.md) {
-                    PrimaryButton(
-                        title: "Retake",
-                        action: {
-                            viewModel.selectedImage = nil
-                        },
-                        style: .outline
-                    )
-                    
-                    PrimaryButton(
-                        title: "Continue",
-                        action: {
-                            navigateToItemSelection = true
-                        },
-                        style: .primary
-                    )
-                }
-                .padding(AppSpacing.lg)
-            }
-            .background(Color.adaptiveCard)
-        }
-    }
 }
 
-// MARK: - Image Picker
-struct ImagePicker: UIViewControllerRepresentable {
-    @Binding var image: UIImage?
-    let sourceType: UIImagePickerController.SourceType
-    @Environment(\.dismiss) private var dismiss
+// MARK: - Feature Row
+struct FeatureRow: View {
+    let icon: String
+    let title: String
+    let description: String
     
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = sourceType
-        picker.delegate = context.coordinator
-        return picker
-    }
-    
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
-        
-        init(_ parent: ImagePicker) {
-            self.parent = parent
-        }
-        
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                parent.image = image
+    var body: some View {
+        HStack(spacing: AppSpacing.md) {
+            ZStack {
+                Circle()
+                    .fill(Color.appSecondary.opacity(0.15))
+                    .frame(width: 48, height: 48)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(.appSecondary)
             }
-            parent.dismiss()
+            
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                Text(title)
+                    .font(.appCallout(.semibold))
+                    .foregroundColor(.adaptiveTextPrimary)
+                
+                Text(description)
+                    .font(.appCaption1(.regular))
+                    .foregroundColor(.adaptiveTextSecondary)
+            }
+            
+            Spacer()
         }
-        
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.dismiss()
-        }
+        .padding(AppSpacing.md)
+        .background(Color.adaptiveCard)
+        .cornerRadius(AppSpacing.radiusMedium)
     }
 }
 

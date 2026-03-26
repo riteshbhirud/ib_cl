@@ -39,7 +39,7 @@ struct AccountView: View {
             .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showingWithdraw) {
-                WithdrawView(viewModel: viewModel)
+                WithdrawView()
             }
         }
     }

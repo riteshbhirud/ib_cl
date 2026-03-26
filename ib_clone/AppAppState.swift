@@ -339,44 +339,72 @@ class AppState {
     }
     
     // MARK: - Submission Management
-    func submitReceipt(storeId: UUID, items: [UserOfferListItem], receiptImageUrl: String) async throws {
-        guard let userId = currentUser?.id else { return }
+    func submitReceipt(
+        storeId: UUID, 
+        items: [UserOfferListItem], 
+        receiptImageUrls: [String]
+    ) async throws {
+        guard let userId = currentUser?.id else { 
+            throw NSError(domain: "AppState", code: 401, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
+        }
+        
+        guard !receiptImageUrls.isEmpty else {
+            throw NSError(domain: "AppState", code: 400, userInfo: [NSLocalizedDescriptionKey: "At least one receipt image is required"])
+        }
         
         let totalCashback = items.reduce(0) { $0 + $1.totalCashback }
         
+        // Prepare submission items for the service
+        let submissionItemsInput = items.map { item in
+            SubmissionItemInput(
+                offerId: item.offerId,
+                offerName: item.offer?.name ?? "Unknown",
+                quantity: item.quantity,
+                cashbackPerItem: item.offer?.cashback ?? 0,
+                totalCashback: (item.offer?.cashback ?? 0) * Double(item.quantity)
+            )
+        }
+        
+        // Call the SubmissionService to save to database
+        let submittedSubmission = try await SubmissionService().createSubmission(
+            userId: userId,
+            storeId: storeId,
+            receiptUrls: receiptImageUrls,
+            items: submissionItemsInput,
+            totalCashback: totalCashback
+        )
+        
+        // Add store information to the submission
+        var submissionWithStore = submittedSubmission
+        submissionWithStore.store = stores.first { $0.id == storeId }
+        
+        // Fetch and attach submission items to the submission
         let submissionItems = items.map { item in
             SubmissionItem(
-                submissionId: UUID(),
+                submissionId: submittedSubmission.id,
                 offerId: item.offerId,
                 offerName: item.offer?.name ?? "Unknown",
                 quantity: item.quantity,
                 cashbackPerItem: item.offer?.cashback ?? 0
             )
         }
+        submissionWithStore.items = submissionItems
         
-        let submission = Submission(
-            userId: userId,
-            storeId: storeId,
-            receiptImageUrl: receiptImageUrl,
-            totalCashback: totalCashback,
-            status: .pending,
-            items: submissionItems,
-            store: stores.first { $0.id == storeId }
-        )
+        // Add to local state
+        submissions.insert(submissionWithStore, at: 0)
         
-        // Simulate API call
-        try await Task.sleep(nanoseconds: 500_000_000)
-        
-        submissions.insert(submission, at: 0)
-        
-        // Remove submitted items from list
+        // Remove submitted items from local list (already removed in SubmissionService)
         for item in items {
-            removeFromList(item.id)
+            if let index = userListItems.firstIndex(where: { $0.id == item.id }) {
+                userListItems.remove(at: index)
+            }
         }
         
         // Haptic feedback
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
+        
+        print("✅ Receipt submitted successfully to database: \(submittedSubmission.id)")
     }
     
     func getSubmissions(status: Submission.SubmissionStatus? = nil) -> [Submission] {
@@ -395,23 +423,38 @@ class AppState {
             throw NSError(domain: "AppState", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid withdrawal amount"])
         }
         
-        // Simulate API call
-        try await Task.sleep(nanoseconds: 1_000_000_000)
+        print("💳 Processing gift card withdrawal of \(amount.asCurrency)")
         
+        // Simulate API call to process withdrawal
+        try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+        
+        // Update user balance
         user.balance -= amount
         user.totalWithdrawn += amount
         currentUser = user
         
+        // Create transaction record
         let transaction = Transaction(
             userId: userId,
             type: .withdrawal,
             amount: amount,
-            description: "PayPal withdrawal"
+            description: "Visa Gift Card - Link sent to email"
         )
         transactions.insert(transaction, at: 0)
         
+        print("✅ Withdrawal processed successfully")
+        print("   New balance: \(user.balance.asCurrency)")
+        print("   Total withdrawn: \(user.totalWithdrawn.asCurrency)")
+        
+        // In production, this would:
+        // 1. Call backend API to create withdrawal request
+        // 2. Backend would send email with gift card selection link
+        // 3. User would receive email within 24 hours
+        
         // Haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        await MainActor.run {
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        }
     }
 }

@@ -16,7 +16,7 @@ class RedeemViewModel {
     let store: Store
     let items: [UserOfferListItem]
     
-    var selectedImage: UIImage?
+    var receiptImages: [UIImage] = []
     var selectedItems: Set<UUID> = []
     var itemQuantities: [UUID: Int] = [:]
     var isSubmitting = false
@@ -66,8 +66,13 @@ class RedeemViewModel {
             return
         }
         
-        guard selectedImage != nil else {
-            submissionError = "Please capture a receipt image"
+        guard !receiptImages.isEmpty else {
+            submissionError = "Please capture receipt images"
+            return
+        }
+        
+        guard let userId = appState.currentUser?.id else {
+            submissionError = "User not authenticated"
             return
         }
         
@@ -84,19 +89,33 @@ class RedeemViewModel {
                     return updatedItem
                 }
             
-            // In a real app, you'd upload the image first and get a URL
-            let mockImageUrl = "receipt_\(UUID().uuidString)"
+            // Upload all receipt images to Supabase Storage
+            print("📤 Uploading \(receiptImages.count) receipt image(s)...")
+            let submissionService = SubmissionService()
+            var receiptUrls: [String] = []
             
+            for (index, image) in receiptImages.enumerated() {
+                let imageData = image.jpegData(compressionQuality: 0.8) ?? Data()
+                let receiptUrl = try await submissionService.uploadReceiptImage(
+                    userId: userId,
+                    imageData: imageData
+                )
+                receiptUrls.append(receiptUrl)
+                print("✅ Receipt image \(index + 1)/\(receiptImages.count) uploaded")
+            }
+            
+            // Submit the receipt with all image URLs
             try await appState.submitReceipt(
                 storeId: store.id,
                 items: itemsToSubmit,
-                receiptImageUrl: mockImageUrl
+                receiptImageUrls: receiptUrls
             )
             
             isSubmitting = false
         } catch {
             isSubmitting = false
             submissionError = error.localizedDescription
+            print("❌ Submission error: \(error)")
             throw error
         }
     }

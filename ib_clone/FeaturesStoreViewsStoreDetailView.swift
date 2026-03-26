@@ -143,8 +143,9 @@ struct StoreDetailView: View {
     
     // MARK: - Floating List Button
     private var floatingListButton: some View {
-        NavigationLink {
-            MyListView(preselectedStoreId: store.id)
+        Button {
+            // Switch to My List tab
+            appState.selectedTab = .myList
         } label: {
             HStack {
                 Image(systemName: "list.bullet")

@@ -10,6 +10,9 @@ import SwiftUI
 struct MyListView: View {
     @State private var viewModel = MyListViewModel()
     @Environment(AppState.self) private var appState
+    @State private var showingRedeemFlow = false
+    @State private var selectedStore: Store?
+    @State private var selectedItems: [UserOfferListItem] = []
     var preselectedStoreId: UUID? = nil
     
     var body: some View {
@@ -34,6 +37,13 @@ struct MyListView: View {
             .navigationTitle("My List")
             .navigationBarTitleDisplayMode(.large)
             .background(Color.adaptiveBackground)
+        }
+        .sheet(isPresented: $showingRedeemFlow) {
+            if let store = selectedStore {
+                NavigationStack {
+                    ReceiptCaptureView(store: store, items: selectedItems)
+                }
+            }
         }
     }
     
@@ -129,8 +139,6 @@ struct MyListView: View {
     private func storeListView(for store: Store) -> some View {
         let items = viewModel.getItems(for: store.id)
         
-        @State var showingRedeemFlow = false
-        
         ZStack(alignment: .bottom) {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.lg) {
@@ -168,6 +176,8 @@ struct MyListView: View {
                 Divider()
                 
                 Button {
+                    selectedStore = store
+                    selectedItems = items
                     showingRedeemFlow = true
                 } label: {
                     HStack {
@@ -188,11 +198,6 @@ struct MyListView: View {
             .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -2)
         }
         .navigationTitle(store.name)
-        .sheet(isPresented: $showingRedeemFlow) {
-            NavigationStack {
-                ReceiptCaptureView(store: store, items: items)
-            }
-        }
     }
 }
 

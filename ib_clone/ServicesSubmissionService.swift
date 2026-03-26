@@ -38,15 +38,16 @@ class SubmissionService {
     func createSubmission(
         userId: UUID,
         storeId: UUID,
-        receiptUrl: String,
+        receiptUrls: [String],
         items: [SubmissionItemInput],
         totalCashback: Double
     ) async throws -> Submission {
-        // 1. Insert the submission
+        // 1. Insert the submission with first image as primary, all as array
         let submissionInsert = SubmissionInsert(
             userId: userId,
             storeId: storeId,
-            receiptImageUrl: receiptUrl,
+            receiptImageUrl: receiptUrls.first!,
+            receiptImageUrls: receiptUrls,
             totalCashback: totalCashback
         )
         
@@ -153,12 +154,14 @@ struct SubmissionInsert: Encodable {
     let userId: UUID
     let storeId: UUID
     let receiptImageUrl: String
+    let receiptImageUrls: [String]
     let totalCashback: Double
     
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case storeId = "store_id"
         case receiptImageUrl = "receipt_image_url"
+        case receiptImageUrls = "receipt_image_urls"
         case totalCashback = "total_cashback"
     }
 }

@@ -10,6 +10,8 @@ import SwiftUI
 struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @Environment(AppState.self) private var appState
+    @State private var showingWithdraw = false
+    @State private var navigationPath = NavigationPath()
     
     let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -17,7 +19,7 @@ struct HomeView: View {
     ]
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.xl) {
                     // Header with greeting and balance
@@ -44,12 +46,15 @@ struct HomeView: View {
             .refreshable {
                 await viewModel.refreshStores()
             }
-            .onAppear {
-                print("🏠 HomeView appeared")
-                print("📊 Stores count: \(appState.stores.count)")
-                for store in appState.stores {
-                    print("  - \(store.name)")
-                }
+            .sheet(isPresented: $showingWithdraw) {
+                WithdrawView()
+            }
+        }
+        .onAppear {
+            print("🏠 HomeView appeared")
+            print("📊 Stores count: \(appState.stores.count)")
+            for store in appState.stores {
+                print("  - \(store.name)")
             }
         }
     }
@@ -69,19 +74,24 @@ struct HomeView: View {
             
             Spacer()
             
-            // Balance Badge
-            HStack(spacing: 6) {
-                Image(systemName: "dollarsign.circle.fill")
-                    .foregroundColor(.appCashback)
-                Text(appState.currentUser?.balance.asCurrency ?? "$0.00")
-                    .font(.appCallout(.semibold))
-                    .foregroundColor(.adaptiveTextPrimary)
+            // Balance Badge - Tappable
+            Button(action: {
+                showingWithdraw = true
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "dollarsign.circle.fill")
+                        .foregroundColor(.appCashback)
+                    Text(appState.currentUser?.balance.asCurrency ?? "$0.00")
+                        .font(.appCallout(.semibold))
+                        .foregroundColor(.adaptiveTextPrimary)
+                }
+                .padding(.horizontal, AppSpacing.md)
+                .padding(.vertical, AppSpacing.sm)
+                .background(Color.adaptiveCard)
+                .cornerRadius(20)
+                .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
             }
-            .padding(.horizontal, AppSpacing.md)
-            .padding(.vertical, AppSpacing.sm)
-            .background(Color.adaptiveCard)
-            .cornerRadius(20)
-            .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
+            .pressAnimation()
         }
     }
     

@@ -17,9 +17,9 @@ struct SelectItemsView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.xl) {
-                    // Receipt Thumbnail
-                    if let image = viewModel.selectedImage {
-                        receiptThumbnail(image)
+                    // Receipt Thumbnails
+                    if !viewModel.receiptImages.isEmpty {
+                        receiptThumbnails
                     }
                     
                     // Instructions
@@ -77,7 +77,40 @@ struct SelectItemsView: View {
         }
     }
     
-    // MARK: - Receipt Thumbnail
+    // MARK: - Receipt Thumbnails
+    private var receiptThumbnails: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            HStack {
+                Image(systemName: "photo.stack.fill")
+                    .foregroundColor(.appPrimary)
+                Text("\(viewModel.receiptImages.count) \(viewModel.receiptImages.count == 1 ? "Photo" : "Photos")")
+                    .font(.appCallout(.semibold))
+                    .foregroundColor(.adaptiveTextPrimary)
+            }
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppSpacing.sm) {
+                    ForEach(Array(viewModel.receiptImages.enumerated()), id: \.offset) { index, image in
+                        VStack(spacing: 4) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 100, height: 130)
+                                .clipped()
+                                .cornerRadius(AppSpacing.radiusSmall)
+                            
+                            Text("Photo \(index + 1)")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.adaptiveTextSecondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, AppSpacing.lg)
+    }
+    
+    // MARK: - Receipt Thumbnail (Deprecated - kept for compatibility)
     private func receiptThumbnail(_ image: UIImage) -> some View {
         HStack(spacing: AppSpacing.md) {
             Image(uiImage: image)
