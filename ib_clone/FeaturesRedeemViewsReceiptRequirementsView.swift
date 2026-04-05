@@ -72,14 +72,14 @@ struct ReceiptRequirementsView: View {
                         icon: "building.2.fill",
                         iconColor: .appSecondary,
                         title: "Correct Retailer",
-                        description: "Receipt must be from \(store.name)"
+                        descriptionContent: Text("Receipt must be from ") + Text(store.name).bold()
                     )
                     
                     RequirementRow(
                         icon: "calendar.badge.clock",
                         iconColor: .appSuccess,
                         title: "Recent Purchase",
-                        description: "Receipt date must be after \(formattedCutoffDate)"
+                        descriptionContent: Text("Receipt date must be after ") + Text(formattedCutoffDate).bold()
                     )
                     
                     RequirementRow(
@@ -95,6 +95,13 @@ struct ReceiptRequirementsView: View {
                         title: "Items Visible",
                         description: "Purchased items must be clearly shown"
                     )
+                    
+                    RequirementRow(
+                        icon: "photo.stack.fill",
+                        iconColor: .appPrimary,
+                        title: "Long Receipt?",
+                        description: "You can take multiple photos to capture everything"
+                    )
                 }
                 .padding(AppSpacing.xl)
                 
@@ -109,7 +116,7 @@ struct ReceiptRequirementsView: View {
                             .font(.appCallout(.semibold))
                             .foregroundColor(.adaptiveTextPrimary)
                         
-                        Text("Receipts that don't meet these requirements will be automatically rejected")
+                        Text("Each receipt may only be submitted to one cashback app. Receipts that don't meet these requirements or have been used elsewhere will be rejected.")
                             .font(.appCaption1(.regular))
                             .foregroundColor(.adaptiveTextSecondary)
                     }
@@ -154,7 +161,21 @@ struct RequirementRow: View {
     let icon: String
     let iconColor: Color
     let title: String
-    let description: String
+    private let descriptionContent: Text
+    
+    init(icon: String, iconColor: Color, title: String, description: String) {
+        self.icon = icon
+        self.iconColor = iconColor
+        self.title = title
+        self.descriptionContent = Text(description)
+    }
+    
+    init(icon: String, iconColor: Color, title: String, descriptionContent: Text) {
+        self.icon = icon
+        self.iconColor = iconColor
+        self.title = title
+        self.descriptionContent = descriptionContent
+    }
     
     var body: some View {
         HStack(alignment: .top, spacing: AppSpacing.md) {
@@ -173,7 +194,7 @@ struct RequirementRow: View {
                     .font(.appCallout(.semibold))
                     .foregroundColor(.adaptiveTextPrimary)
                 
-                Text(description)
+                descriptionContent
                     .font(.appCaption1(.regular))
                     .foregroundColor(.adaptiveTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)

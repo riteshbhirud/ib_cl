@@ -12,18 +12,50 @@ import Supabase
 class OfferService {
     private let client = SupabaseManager.shared.client
     
-    // Fetch all offers for a store
+    // Fetch all offers for a store (via offer_stores junction table)
     func fetchOffers(storeId: UUID) async throws -> [Offer] {
-        let offers: [Offer] = try await client
-            .from("offers")
-            .select()
+        // Step 1: Get offer IDs linked to this store from the junction table
+        struct OfferIdRow: Codable {
+            let offerId: UUID
+            enum CodingKeys: String, CodingKey {
+                case offerId = "offer_id"
+            }
+        }
+        
+        let idRows: [OfferIdRow] = try await client
+            .from("offer_stores")
+            .select("offer_id")
             .eq("store_id", value: storeId.uuidString)
-            .eq("is_active", value: true)
-            .order("created_at", ascending: false)
             .execute()
             .value
         
-        return offers
+        print("   📋 Found \(idRows.count) offer IDs in offer_stores for store \(storeId)")
+        
+        guard !idRows.isEmpty else { return [] }
+        
+        // Step 2: Fetch the actual offer objects in batches
+        // (PostgREST has a URL length limit — 891 UUIDs in a single IN() query exceeds it)
+        let allOfferIds = idRows.map { $0.offerId.uuidString }
+        let batchSize = 100
+        var allOffers: [Offer] = []
+        
+        for batchStart in stride(from: 0, to: allOfferIds.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, allOfferIds.count)
+            let batch = Array(allOfferIds[batchStart..<batchEnd])
+            
+            let offers: [Offer] = try await client
+                .from("offers")
+                .select()
+                .in("id", values: batch)
+                .eq("active", value: true)
+                .execute()
+                .value
+            
+            allOffers.append(contentsOf: offers)
+        }
+        
+        print("   📦 Fetched \(allOffers.count) offers in \((allOfferIds.count + batchSize - 1) / batchSize) batches")
+        return allOffers
     }
     
     // Fetch single offer by ID
@@ -40,45 +72,12 @@ class OfferService {
     }
     
     // Search offers by name
-    func searchOffers(query: String, storeId: UUID? = nil) async throws -> [Offer] {
-        var request = client
+    func searchOffers(query: String) async throws -> [Offer] {
+        let offers: [Offer] = try await client
             .from("offers")
             .select()
             .ilike("name", pattern: "%\(query)%")
-            .eq("is_active", value: true)
-        
-        if let storeId = storeId {
-            request = request.eq("store_id", value: storeId.uuidString)
-        }
-        
-        let offers: [Offer] = try await request.execute().value
-        return offers
-    }
-    
-    // Fetch expiring soon offers
-    func fetchExpiringSoonOffers(storeId: UUID) async throws -> [Offer] {
-        let offers: [Offer] = try await client
-            .from("offers")
-            .select()
-            .eq("store_id", value: storeId.uuidString)
-            .eq("is_active", value: true)
-            .eq("expiring_soon", value: true)
-            .order("expires_at", ascending: true)
-            .execute()
-            .value
-        
-        return offers
-    }
-    
-    // Fetch bonus offers
-    func fetchBonusOffers(storeId: UUID) async throws -> [Offer] {
-        let offers: [Offer] = try await client
-            .from("offers")
-            .select()
-            .eq("store_id", value: storeId.uuidString)
-            .eq("is_active", value: true)
-            .eq("has_bonus", value: true)
-            .order("created_at", ascending: false)
+            .eq("active", value: true)
             .execute()
             .value
         

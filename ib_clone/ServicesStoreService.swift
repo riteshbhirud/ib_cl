@@ -17,7 +17,7 @@ class StoreService {
         let stores: [Store] = try await client
             .from("stores")
             .select()
-            .eq("is_active", value: true)
+            .eq("active", value: true)
             .order("sort_order", ascending: true)
             .execute()
             .value
@@ -38,16 +38,15 @@ class StoreService {
         return store
     }
     
-    // Fetch stores with offer counts
+    // Fetch stores with offer counts (via offer_stores junction table)
     func fetchStoresWithOfferCounts() async throws -> [Store] {
         var stores = try await fetchStores()
         
         for i in stores.indices {
             let count = try await client
-                .from("offers")
+                .from("offer_stores")
                 .select("id", head: true, count: .exact)
                 .eq("store_id", value: stores[i].id.uuidString)
-                .eq("is_active", value: true)
                 .execute()
                 .count ?? 0
             

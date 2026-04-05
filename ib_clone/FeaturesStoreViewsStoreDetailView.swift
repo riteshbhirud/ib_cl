@@ -13,8 +13,8 @@ struct StoreDetailView: View {
     @Environment(AppState.self) private var appState
     
     let columns = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
     ]
     
     init(store: Store) {
@@ -25,12 +25,15 @@ struct StoreDetailView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.xl) {
+                VStack(alignment: .leading, spacing: AppSpacing.lg) {
                     // Store Header
                     storeHeader
                     
-                    // Filter Chips
-                    filterChips
+                    // Search Bar
+                    searchBar
+                    
+                    // Filter Chips + Sort
+                    filterAndSortRow
                     
                     // Offers Grid
                     offersGrid
@@ -48,58 +51,164 @@ struct StoreDetailView: View {
         }
         .navigationTitle(store.name)
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await viewModel.loadOffersIfNeeded()
+        }
     }
     
     // MARK: - Store Header
     private var storeHeader: some View {
-        HStack(spacing: AppSpacing.lg) {
-            Circle()
-                .fill(Color.gray.opacity(0.1))
-                .frame(width: 80, height: 80)
-                .overlay(
-                    Image(systemName: "building.2.fill")
-                        .font(.system(size: 32))
-                        .foregroundColor(.appSecondary)
-                )
-            
-            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                Text(store.name)
-                    .font(.appTitle2(.bold))
-                    .foregroundColor(.adaptiveTextPrimary)
-                
-                if let description = store.description {
-                    Text(description)
-                        .font(.appCallout(.regular))
-                        .foregroundColor(.adaptiveTextSecondary)
+        HStack(spacing: 14) {
+            // Store logo from DB
+            Group {
+                if let logoUrl = store.logoUrl, let url = URL(string: logoUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .frame(width: 44, height: 44)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 44, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        case .failure:
+                            storeFallbackIcon
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else {
+                    storeFallbackIcon
                 }
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(store.name)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.adaptiveTextPrimary)
                 
                 if let count = store.offerCount {
                     Text("\(count) offers available")
-                        .font(.appFootnote(.medium))
-                        .foregroundColor(.appSecondary)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.adaptiveTextSecondary)
+                }
+            }
+            
+            Spacer()
+        }
+    }
+    
+    private var storeFallbackIcon: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(Color.gray.opacity(0.1))
+            .frame(width: 44, height: 44)
+            .overlay(
+                Image(systemName: "building.2.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.appSecondary)
+            )
+    }
+    
+    // MARK: - Search Bar
+    private var searchBar: some View {
+        HStack(spacing: AppSpacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15))
+                .foregroundColor(.adaptiveTextSecondary)
+            
+            TextField("Search offers...", text: Bindable(viewModel).searchText)
+                .font(.system(size: 15))
+                .foregroundColor(.adaptiveTextPrimary)
+            
+            if !viewModel.searchText.isEmpty {
+                Button {
+                    viewModel.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.gray.opacity(0.5))
                 }
             }
         }
-        .padding(AppSpacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, 10)
         .background(Color.adaptiveCard)
-        .cornerRadius(AppSpacing.cardCornerRadius)
-        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+        .cornerRadius(AppSpacing.radiusMedium)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppSpacing.radiusMedium)
+                .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+        )
     }
     
-    // MARK: - Filter Chips
-    private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppSpacing.sm) {
-                ForEach(StoreViewModel.OfferFilter.allCases, id: \.self) { filter in
+    // MARK: - Filter and Sort Row
+    private var filterAndSortRow: some View {
+        VStack(spacing: AppSpacing.sm) {
+            // Filter Chips: All → pinned → dynamic categories
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppSpacing.sm) {
+                    // "All" chip (always first)
                     FilterChip(
-                        title: filter.rawValue,
-                        isSelected: viewModel.selectedFilter == filter
+                        title: "All",
+                        count: viewModel.offers.count,
+                        isSelected: viewModel.selectedCategory == nil
                     ) {
                         withAnimation(.spring(response: 0.3)) {
-                            viewModel.selectedFilter = filter
+                            viewModel.selectedCategory = nil
                         }
                     }
+                    
+                    // Ordered tabs: pinned first, then remaining categories
+                    ForEach(viewModel.filterTabs, id: \.key) { tab in
+                        FilterChip(
+                            title: tab.label,
+                            count: tab.count,
+                            isSelected: viewModel.selectedCategory == tab.key
+                        ) {
+                            withAnimation(.spring(response: 0.3)) {
+                                viewModel.selectedCategory = tab.key
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Sort Picker
+            HStack {
+                Text("\(viewModel.filteredOffers.count) Offers")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.adaptiveTextPrimary)
+                
+                Spacer()
+                
+                Menu {
+                    ForEach(StoreViewModel.OfferSort.allCases, id: \.self) { sort in
+                        Button {
+                            withAnimation(.spring(response: 0.3)) {
+                                viewModel.selectedSort = sort
+                            }
+                        } label: {
+                            HStack {
+                                Text(sort.rawValue)
+                                if viewModel.selectedSort == sort {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(viewModel.selectedSort.rawValue)
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(.appPrimary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.appPrimary.opacity(0.1))
+                    .cornerRadius(8)
                 }
             }
         }
@@ -108,20 +217,29 @@ struct StoreDetailView: View {
     // MARK: - Offers Grid
     private var offersGrid: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("\(viewModel.filteredOffers.count) Offers")
-                .font(.appTitle3(.semibold))
-                .foregroundColor(.adaptiveTextPrimary)
-            
-            if viewModel.filteredOffers.isEmpty {
+            if !viewModel.hasLoadedOffers {
+                // Loading state while offers are being fetched
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .controlSize(.large)
+                    Text("Loading offers...")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.adaptiveTextSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 200)
+            } else if viewModel.filteredOffers.isEmpty {
                 EmptyStateView(
-                    icon: "tag.slash.fill",
-                    title: "No Offers",
-                    message: "No offers match your selected filter"
+                    icon: viewModel.searchText.isEmpty ? "tag.slash.fill" : "magnifyingglass",
+                    title: viewModel.searchText.isEmpty ? "No Offers" : "No Results",
+                    message: viewModel.searchText.isEmpty
+                        ? "No offers in \(viewModel.selectedCategory ?? "this category")"
+                        : "No offers match \"\(viewModel.searchText)\""
                 )
-                .frame(height: 300)
+                .frame(height: 200)
             } else {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(viewModel.filteredOffers) { offer in
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(Array(viewModel.filteredOffers.enumerated()), id: \.element.id) { index, offer in
                         NavigationLink(value: offer) {
                             OfferCard(
                                 offer: offer,
@@ -132,12 +250,14 @@ struct StoreDetailView: View {
                             )
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     }
                 }
+                .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.selectedCategory)
             }
         }
         .navigationDestination(for: Offer.self) { offer in
-            OfferDetailView(offer: offer)
+            OfferDetailView(offer: offer, storeId: store.id)
         }
     }
     
@@ -168,6 +288,7 @@ struct StoreDetailView: View {
 // MARK: - Filter Chip
 struct FilterChip: View {
     let title: String
+    var count: Int? = nil
     let isSelected: Bool
     let action: () -> Void
     
@@ -177,17 +298,29 @@ struct FilterChip: View {
             generator.impactOccurred()
             action()
         }) {
-            Text(title)
-                .font(.appCallout(.medium))
-                .foregroundColor(isSelected ? .white : .adaptiveTextPrimary)
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.vertical, AppSpacing.sm)
-                .background(isSelected ? Color.appPrimary : Color.adaptiveCard)
-                .cornerRadius(20)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(isSelected ? Color.clear : Color.gray.opacity(0.2), lineWidth: 1)
-                )
+            HStack(spacing: 5) {
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+                
+                if let count {
+                    Text("\(count)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(isSelected ? .appPrimary : .white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(isSelected ? Color.white.opacity(0.9) : Color.gray.opacity(0.4))
+                        .clipShape(Capsule())
+                }
+            }
+            .foregroundColor(isSelected ? .white : .adaptiveTextPrimary)
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.sm)
+            .background(isSelected ? Color.appPrimary : Color.adaptiveCard)
+            .cornerRadius(20)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(isSelected ? Color.clear : Color.gray.opacity(0.2), lineWidth: 1)
+            )
         }
         .pressAnimation()
     }
@@ -195,7 +328,7 @@ struct FilterChip: View {
 
 #Preview {
     NavigationStack {
-        StoreDetailView(store: MockData.shared.stores[0])
+        StoreDetailView(store: Store(name: "Walmart", slug: "walmart", offerCount: 12))
             .environment(AppState.shared)
     }
 }

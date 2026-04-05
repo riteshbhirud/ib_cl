@@ -10,7 +10,6 @@ import SwiftUI
 struct MyListView: View {
     @State private var viewModel = MyListViewModel()
     @Environment(AppState.self) private var appState
-    @State private var showingRedeemFlow = false
     @State private var selectedStore: Store?
     @State private var selectedItems: [UserOfferListItem] = []
     var preselectedStoreId: UUID? = nil
@@ -38,11 +37,9 @@ struct MyListView: View {
             .navigationBarTitleDisplayMode(.large)
             .background(Color.adaptiveBackground)
         }
-        .sheet(isPresented: $showingRedeemFlow) {
-            if let store = selectedStore {
-                NavigationStack {
-                    ReceiptCaptureView(store: store, items: selectedItems)
-                }
+        .sheet(item: $selectedStore) { store in
+            NavigationStack {
+                ReceiptCaptureView(store: store, items: selectedItems)
             }
         }
     }
@@ -176,9 +173,8 @@ struct MyListView: View {
                 Divider()
                 
                 Button {
-                    selectedStore = store
                     selectedItems = items
-                    showingRedeemFlow = true
+                    selectedStore = store
                 } label: {
                     HStack {
                         Image(systemName: "camera.fill")
@@ -208,39 +204,74 @@ struct StoreListRow: View {
     let totalCashback: Double
     
     var body: some View {
-        HStack(spacing: AppSpacing.lg) {
-            // Store Logo
-            Circle()
-                .fill(Color.gray.opacity(0.1))
-                .frame(width: 60, height: 60)
-                .overlay(
-                    Image(systemName: "building.2.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.appSecondary)
-                )
+        HStack(spacing: 14) {
+            // Store Logo from DB
+            Group {
+                if let logoUrl = store.logoUrl, let url = URL(string: logoUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .frame(width: 48, height: 48)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 48, height: 48)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        case .failure:
+                            storeLogoFallback
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else {
+                    storeLogoFallback
+                }
+            }
             
             // Info
-            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(store.name)
-                    .font(.appHeadline(.semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.adaptiveTextPrimary)
                 
-                Text("\(itemCount) items • \(totalCashback.asCurrency)")
-                    .font(.appCallout(.regular))
-                    .foregroundColor(.adaptiveTextSecondary)
+                HStack(spacing: 6) {
+                    Text("\(itemCount) items")
+                        .font(.system(size: 13))
+                        .foregroundColor(.adaptiveTextSecondary)
+                    
+                    Text("•")
+                        .foregroundColor(.adaptiveTextSecondary.opacity(0.5))
+                    
+                    Text(totalCashback.asCurrency)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.appCashback)
+                }
             }
             
             Spacer()
             
             Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.adaptiveTextSecondary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.gray.opacity(0.4))
         }
-        .padding(AppSpacing.lg)
+        .padding(14)
         .background(Color.adaptiveCard)
-        .cornerRadius(AppSpacing.cardCornerRadius)
-        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         .pressAnimation()
+    }
+    
+    private var storeLogoFallback: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Color.gray.opacity(0.08))
+            .frame(width: 48, height: 48)
+            .overlay(
+                Image(systemName: "building.2.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.appSecondary)
+            )
     }
 }
 
@@ -335,15 +366,31 @@ struct ListItemRow: View {
             
             Spacer()
             
-            // Quantity Selector
-            QuantitySelector(
-                quantity: $quantity,
-                minimum: 1,
-                maximum: offer.redemptionLimit,
-                size: .small
-            )
-            .onChange(of: quantity) { oldValue, newValue in
-                onQuantityChange(newValue)
+            // Quantity Selector + Remove
+            VStack(spacing: AppSpacing.sm) {
+                QuantitySelector(
+                    quantity: $quantity,
+                    minimum: 1,
+                    maximum: offer.redemptionLimit ?? 99,
+                    size: .small
+                )
+                .onChange(of: quantity) { oldValue, newValue in
+                    onQuantityChange(newValue)
+                }
+                
+                Button {
+                    let generator = UIImpactFeedbackGenerator(style: .light)
+                    generator.impactOccurred()
+                    onRemove()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 10))
+                        Text("Remove")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(.appPrimary.opacity(0.7))
+                }
             }
         }
         .padding(AppSpacing.md)

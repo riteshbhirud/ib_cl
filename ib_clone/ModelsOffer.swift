@@ -9,7 +9,6 @@ import Foundation
 
 struct Offer: Identifiable, Codable, Hashable {
     let id: UUID
-    let storeId: UUID
     let offerId: String?
     let slug: String?
     let name: String
@@ -20,28 +19,34 @@ struct Offer: Identifiable, Codable, Hashable {
     let offerDetail: String?
     let specialTag: String?
     let purchaseRequirement: String?
-    let redemptionLimit: Int
-    let expiringSoon: Bool
-    let hasBonus: Bool
-    let isActive: Bool
+    let category: String?
+    let redemptionLimit: Int?
+    let expiringSoon: Bool?
+    let hasBonus: Bool?
+    let active: Bool?
     let expiresAt: Date?
-    let createdAt: Date
+    let createdAt: Date?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, slug, cashback, details
-        case storeId = "store_id"
+        case id, name, slug, cashback, details, active
         case offerId = "offer_id"
         case imageUrl = "image_url"
         case cashbackText = "cashback_text"
         case offerDetail = "offer_detail"
         case specialTag = "special_tag"
         case purchaseRequirement = "purchase_requirement"
+        case category
         case redemptionLimit = "redemption_limit"
         case expiringSoon = "expiring_soon"
         case hasBonus = "has_bonus"
-        case isActive = "is_active"
         case expiresAt = "expires_at"
         case createdAt = "created_at"
+    }
+    
+    /// Splits comma-separated category string into individual categories
+    var categories: [String] {
+        guard let category else { return [] }
+        return category.split(separator: ",").map { String($0) }
     }
     
     var formattedCashback: String {
@@ -50,7 +55,6 @@ struct Offer: Identifiable, Codable, Hashable {
     
     init(
         id: UUID = UUID(),
-        storeId: UUID,
         offerId: String? = nil,
         slug: String? = nil,
         name: String,
@@ -61,15 +65,15 @@ struct Offer: Identifiable, Codable, Hashable {
         offerDetail: String? = nil,
         specialTag: String? = nil,
         purchaseRequirement: String? = nil,
+        category: String? = nil,
         redemptionLimit: Int = 5,
         expiringSoon: Bool = false,
         hasBonus: Bool = false,
-        isActive: Bool = true,
+        active: Bool = true,
         expiresAt: Date? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
-        self.storeId = storeId
         self.offerId = offerId
         self.slug = slug
         self.name = name
@@ -80,10 +84,11 @@ struct Offer: Identifiable, Codable, Hashable {
         self.offerDetail = offerDetail
         self.specialTag = specialTag
         self.purchaseRequirement = purchaseRequirement
+        self.category = category
         self.redemptionLimit = redemptionLimit
         self.expiringSoon = expiringSoon
         self.hasBonus = hasBonus
-        self.isActive = isActive
+        self.active = active
         self.expiresAt = expiresAt
         self.createdAt = createdAt
     }

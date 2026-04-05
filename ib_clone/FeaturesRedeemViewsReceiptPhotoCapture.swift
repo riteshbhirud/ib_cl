@@ -14,7 +14,7 @@ struct ReceiptPhotoCapture: View {
     
     @State private var capturedImages: [UIImage] = []
     @State private var showingImagePicker = false
-    @State private var showingCamera = false
+    @State private var showingAddMoreOptions = false
     @State private var imagePickerSourceType: UIImagePickerController.SourceType = .camera
     @Environment(\.dismiss) private var dismiss
     
@@ -71,22 +71,37 @@ struct ReceiptPhotoCapture: View {
                         .fill(Color.appPrimary.opacity(0.1))
                         .frame(width: 100, height: 100)
                     
-                    Image(systemName: "doc.text.image")
-                        .font(.system(size: 48))
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 44))
                         .foregroundColor(.appPrimary)
                 }
                 
                 VStack(spacing: AppSpacing.sm) {
-                    Text("No Photos Yet")
+                    Text("Capture Your Receipt")
                         .font(.appTitle2(.bold))
                         .foregroundColor(.adaptiveTextPrimary)
                     
-                    Text("Take or select photos of your complete receipt")
+                    Text("Start by taking a photo of the top of your \(store.name) receipt")
                         .font(.appCallout(.regular))
                         .foregroundColor(.adaptiveTextSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, AppSpacing.xl)
                 }
+                
+                // Multi-photo hint
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "photo.stack.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.appSecondary)
+                    
+                    Text("You can add more photos after for long receipts")
+                        .font(.appCaption1(.medium))
+                        .foregroundColor(.appSecondary)
+                }
+                .padding(.horizontal, AppSpacing.lg)
+                .padding(.vertical, AppSpacing.sm)
+                .background(Color.appSecondary.opacity(0.1))
+                .cornerRadius(20)
             }
             
             Spacer()
@@ -140,31 +155,38 @@ struct ReceiptPhotoCapture: View {
         VStack(spacing: 0) {
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: AppSpacing.lg) {
-                    // Info Banner
-                    HStack(spacing: AppSpacing.md) {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundColor(.appPrimary)
-                        
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            Text("Long receipt?")
+                    // Step indicator
+                    VStack(spacing: AppSpacing.sm) {
+                        HStack(spacing: AppSpacing.sm) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.appSuccess)
+                                .font(.system(size: 20))
+                            
+                            Text("\(capturedImages.count) \(capturedImages.count == 1 ? "photo" : "photos") captured")
                                 .font(.appCallout(.semibold))
                                 .foregroundColor(.adaptiveTextPrimary)
                             
-                            Text("Add more photos to capture the entire receipt")
+                            Spacer()
+                        }
+                        
+                        HStack(spacing: AppSpacing.sm) {
+                            Image(systemName: "photo.stack.fill")
+                                .foregroundColor(.appSecondary)
+                                .font(.system(size: 16))
+                            
+                            Text("Didn't capture everything? Tap \"+\" to add more photos for the rest of your receipt.")
                                 .font(.appCaption1(.regular))
                                 .foregroundColor(.adaptiveTextSecondary)
                         }
-                        
-                        Spacer()
                     }
                     .padding(AppSpacing.md)
-                    .background(Color.appPrimary.opacity(0.08))
+                    .background(Color.appSecondary.opacity(0.08))
                     .cornerRadius(AppSpacing.radiusMedium)
                     .padding(.horizontal, AppSpacing.lg)
                     .padding(.top, AppSpacing.lg)
                     
-                    // Images Grid
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppSpacing.md) {
+                    // Images — vertical like a receipt
+                    VStack(spacing: 0) {
                         ForEach(Array(capturedImages.enumerated()), id: \.offset) { index, image in
                             ReceiptImageCard(
                                 image: image,
@@ -176,13 +198,23 @@ struct ReceiptPhotoCapture: View {
                                     }
                                 }
                             )
+                            
+                            // Dashed connector between photos
+                            if index < capturedImages.count - 1 {
+                                Rectangle()
+                                    .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
+                                    .foregroundColor(.gray.opacity(0.3))
+                                    .frame(height: 1)
+                                    .padding(.horizontal, AppSpacing.xxxl)
+                            }
                         }
                         
                         // Add More Button
                         addMoreButton
+                            .padding(.top, AppSpacing.md)
                     }
                     .padding(.horizontal, AppSpacing.lg)
-                    .padding(.bottom, AppSpacing.lg)
+                    .padding(.bottom, 100) // Space for bottom bar
                 }
             }
             
@@ -191,12 +223,13 @@ struct ReceiptPhotoCapture: View {
                 Divider()
                 
                 VStack(spacing: AppSpacing.sm) {
-                    Text("\(capturedImages.count) \(capturedImages.count == 1 ? "photo" : "photos") added")
-                        .font(.appCallout(.medium))
+                    Text("All photos captured? Tap continue to review your items.")
+                        .font(.appCaption1(.regular))
                         .foregroundColor(.adaptiveTextSecondary)
+                        .multilineTextAlignment(.center)
                     
                     PrimaryButton(
-                        title: "Continue",
+                        title: "Continue with \(capturedImages.count) \(capturedImages.count == 1 ? "Photo" : "Photos")",
                         action: {
                             onPhotosSelected(capturedImages)
                             dismiss()
@@ -213,20 +246,31 @@ struct ReceiptPhotoCapture: View {
     // MARK: - Add More Button
     private var addMoreButton: some View {
         Button(action: {
-            imagePickerSourceType = .camera
-            showingImagePicker = true
+            showingAddMoreOptions = true
         }) {
-            VStack(spacing: AppSpacing.md) {
+            HStack(spacing: AppSpacing.md) {
                 Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 40))
+                    .font(.system(size: 28))
                     .foregroundColor(.appPrimary)
                 
-                Text("Add Photo")
-                    .font(.appCallout(.semibold))
-                    .foregroundColor(.appPrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Add Next Section")
+                        .font(.appCallout(.semibold))
+                        .foregroundColor(.appPrimary)
+                    
+                    Text("Capture the next part of your receipt")
+                        .font(.appCaption1(.regular))
+                        .foregroundColor(.adaptiveTextSecondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.appPrimary.opacity(0.5))
             }
+            .padding(AppSpacing.lg)
             .frame(maxWidth: .infinity)
-            .frame(height: 200)
             .background(Color.appPrimary.opacity(0.05))
             .overlay(
                 RoundedRectangle(cornerRadius: AppSpacing.radiusMedium)
@@ -235,6 +279,17 @@ struct ReceiptPhotoCapture: View {
             .cornerRadius(AppSpacing.radiusMedium)
         }
         .pressAnimation()
+        .confirmationDialog("Add More Receipt Photos", isPresented: $showingAddMoreOptions) {
+            Button("Take Photo") {
+                imagePickerSourceType = .camera
+                showingImagePicker = true
+            }
+            Button("Choose from Library") {
+                imagePickerSourceType = .photoLibrary
+                showingImagePicker = true
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 }
 
@@ -245,38 +300,40 @@ struct ReceiptImageCard: View {
     let onDelete: () -> Void
     
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // Image
+        ZStack(alignment: .topLeading) {
+            // Image — full width, show entire photo without cropping
             Image(uiImage: image)
                 .resizable()
-                .scaledToFill()
-                .frame(height: 200)
-                .clipped()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
                 .cornerRadius(AppSpacing.radiusMedium)
             
-            // Badge
-            HStack(spacing: 4) {
-                Image(systemName: "doc.fill")
-                    .font(.system(size: 10))
-                Text("\(index)")
-                    .font(.system(size: 12, weight: .bold))
+            // Top bar overlay
+            HStack {
+                // Badge
+                HStack(spacing: 4) {
+                    Image(systemName: "doc.fill")
+                        .font(.system(size: 10))
+                    Text("Photo \(index)")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.appPrimary)
+                .cornerRadius(12)
+                
+                Spacer()
+                
+                // Delete Button
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 26))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.5), radius: 2)
+                }
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.appPrimary)
-            .cornerRadius(12)
-            .padding(8)
-            
-            // Delete Button
-            Button(action: onDelete) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(.white)
-                    .background(Circle().fill(Color.red))
-            }
-            .padding(8)
-            .offset(x: 8, y: -8)
+            .padding(10)
         }
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
     }

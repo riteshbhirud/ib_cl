@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SelectItemsView: View {
     @Bindable var viewModel: RedeemViewModel
+    var dismissFlow: (() -> Void)? = nil
     @State private var showingSuccess = false
     @State private var showingError = false
     @Environment(\.dismiss) private var dismiss
@@ -73,7 +74,7 @@ struct SelectItemsView: View {
             Text(viewModel.submissionError ?? "An error occurred")
         }
         .navigationDestination(isPresented: $showingSuccess) {
-            SubmissionSuccessView(totalCashback: viewModel.totalCashback)
+            SubmissionSuccessView(totalCashback: viewModel.totalCashback, dismissFlow: dismissFlow)
         }
     }
     
@@ -167,6 +168,15 @@ struct SelectItemsView: View {
                         .font(.appTitle2(.bold))
                         .foregroundColor(.appCashback)
                 }
+                
+                // Exclusivity note
+                HStack(spacing: AppSpacing.xs) {
+                    Image(systemName: "exclamationmark.circle")
+                        .font(.system(size: 11))
+                    Text("This receipt must be exclusive to this app and not submitted elsewhere.")
+                        .font(.system(size: 11))
+                }
+                .foregroundColor(.adaptiveTextSecondary)
                 
                 // Submit Button
                 PrimaryButton(
@@ -269,7 +279,7 @@ struct SelectableItemRow: View {
                     QuantitySelector(
                         quantity: $quantity,
                         minimum: 1,
-                        maximum: offer.redemptionLimit,
+                        maximum: offer.redemptionLimit ?? 99,
                         size: .small
                     )
                     .onChange(of: quantity) { oldValue, newValue in
@@ -294,7 +304,7 @@ struct SelectableItemRow: View {
     NavigationStack {
         SelectItemsView(
             viewModel: RedeemViewModel(
-                store: MockData.shared.stores[0],
+                store: Store(name: "Walmart", slug: "walmart"),
                 items: []
             )
         )

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SubmissionSuccessView: View {
     let totalCashback: Double
+    var dismissFlow: (() -> Void)? = nil
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var isAnimating = false
@@ -79,7 +80,7 @@ struct SubmissionSuccessView: View {
                     title: "View Activity",
                     action: {
                         appState.selectedTab = .activity
-                        dismiss()
+                        dismissFlow?()
                     },
                     style: .primary
                 )
@@ -88,7 +89,7 @@ struct SubmissionSuccessView: View {
                     title: "Back to Home",
                     action: {
                         appState.selectedTab = .home
-                        dismiss()
+                        dismissFlow?()
                     },
                     style: .outline
                 )
@@ -102,7 +103,7 @@ struct SubmissionSuccessView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     appState.selectedTab = .home
-                    dismiss()
+                    dismissFlow?()
                 }) {
                     Image(systemName: "xmark")
                         .foregroundColor(.adaptiveTextPrimary)

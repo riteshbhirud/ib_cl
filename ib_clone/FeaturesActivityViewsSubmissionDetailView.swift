@@ -257,9 +257,20 @@ struct SubmissionItemRow: View {
 }
 
 #Preview {
+    let store = Store(name: "Walmart", slug: "walmart")
     NavigationStack {
         SubmissionDetailView(
-            submission: MockData.shared.generateSubmissions(userId: UUID())[0]
+            submission: Submission(
+                userId: UUID(),
+                storeId: store.id,
+                receiptImageUrl: "receipt_1",
+                totalCashback: 7.00,
+                status: .approved,
+                items: [
+                    SubmissionItem(submissionId: UUID(), offerId: UUID(), offerName: "Tide PODS 81ct", quantity: 2, cashbackPerItem: 3.50)
+                ],
+                store: store
+            )
         )
     }
 }

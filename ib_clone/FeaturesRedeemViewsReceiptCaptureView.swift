@@ -48,7 +48,7 @@ struct ReceiptCaptureView: View {
             )
         }
         .navigationDestination(isPresented: $navigateToItemSelection) {
-            SelectItemsView(viewModel: viewModel)
+            SelectItemsView(viewModel: viewModel, dismissFlow: { dismiss() })
         }
     }
     
@@ -92,21 +92,43 @@ struct ReceiptCaptureView: View {
             VStack(spacing: AppSpacing.lg) {
                 FeatureRow(
                     icon: "camera.fill",
-                    title: "Clear Photos",
-                    description: "Make sure all items are visible and readable"
-                )
-                
-                FeatureRow(
-                    icon: "photo.stack.fill",
-                    title: "Multiple Photos",
-                    description: "For long receipts, take multiple photos"
+                    title: "Clear & Readable",
+                    description: "Lay your receipt flat and make sure all text is in focus"
                 )
                 
                 FeatureRow(
                     icon: "lightbulb.fill",
                     title: "Good Lighting",
-                    description: "Avoid shadows and ensure receipt is flat"
+                    description: "Avoid shadows and glare on the receipt"
                 )
+                
+                // Multi-photo callout — more prominent
+                HStack(spacing: AppSpacing.md) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.appPrimary.opacity(0.15))
+                            .frame(width: 48, height: 48)
+                        
+                        Image(systemName: "photo.stack.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.appPrimary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Long Receipt?")
+                            .font(.appCallout(.semibold))
+                            .foregroundColor(.adaptiveTextPrimary)
+                        
+                        Text("No problem! You can take multiple photos and we'll combine them. Just capture each section clearly.")
+                            .font(.appCaption1(.regular))
+                            .foregroundColor(.adaptiveTextSecondary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(AppSpacing.md)
+                .background(Color.appPrimary.opacity(0.08))
+                .cornerRadius(AppSpacing.radiusMedium)
             }
             .padding(.horizontal, AppSpacing.xl)
             
@@ -174,7 +196,7 @@ struct FeatureRow: View {
 #Preview {
     NavigationStack {
         ReceiptCaptureView(
-            store: MockData.shared.stores[0],
+            store: Store(name: "Walmart", slug: "walmart"),
             items: []
         )
     }

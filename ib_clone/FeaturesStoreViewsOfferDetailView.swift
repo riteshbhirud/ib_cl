@@ -9,6 +9,7 @@ import SwiftUI
 
 struct OfferDetailView: View {
     let offer: Offer
+    let storeId: UUID
     @Environment(AppState.self) private var appState
     @State private var quantity: Int = 1
     @Environment(\.dismiss) private var dismiss
@@ -47,35 +48,30 @@ struct OfferDetailView: View {
     // MARK: - Image Section
     private var imageSection: some View {
         ZStack(alignment: .topTrailing) {
-            // Large Product Image with AsyncImage from database
+            // Product Image — contained with light background
             Group {
                 if let imageUrl = offer.imageUrl, let url = URL(string: imageUrl) {
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.1))
-                                .frame(height: 350)
+                            Color.gray.opacity(0.04)
+                                .frame(height: 220)
                                 .frame(maxWidth: .infinity)
-                                .overlay(
-                                    ProgressView()
-                                        .scaleEffect(1.5)
-                                )
+                                .overlay(ProgressView())
                         case .success(let image):
                             image
                                 .resizable()
                                 .scaledToFit()
-                                .frame(height: 350)
+                                .padding(AppSpacing.xl)
+                                .frame(height: 220)
                                 .frame(maxWidth: .infinity)
-                                .background(Color.gray.opacity(0.05))
                         case .failure:
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.1))
-                                .frame(height: 350)
+                            Color.gray.opacity(0.04)
+                                .frame(height: 220)
                                 .frame(maxWidth: .infinity)
                                 .overlay(
                                     Image(systemName: "photo")
-                                        .font(.system(size: 80))
+                                        .font(.system(size: 48))
                                         .foregroundColor(.gray.opacity(0.3))
                                 )
                         @unknown default:
@@ -83,30 +79,21 @@ struct OfferDetailView: View {
                         }
                     }
                 } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(height: 350)
+                    Color.gray.opacity(0.04)
+                        .frame(height: 220)
                         .frame(maxWidth: .infinity)
                         .overlay(
                             Image(systemName: "photo")
-                                .font(.system(size: 80))
+                                .font(.system(size: 48))
                                 .foregroundColor(.gray.opacity(0.3))
                         )
                 }
             }
-            .clipped()
-            .overlay(
-                // Gradient overlay at bottom for badges visibility
-                LinearGradient(
-                    colors: [Color.clear, Color.black.opacity(0.2)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .background(Color.gray.opacity(0.04))
             
             // Badges
             VStack(alignment: .trailing, spacing: AppSpacing.xs) {
-                if offer.expiringSoon {
+                if offer.expiringSoon == true {
                     badgeView(
                         icon: "clock.fill",
                         text: "Expiring Soon",
@@ -121,7 +108,7 @@ struct OfferDetailView: View {
                     )
                 }
                 
-                if offer.hasBonus {
+                if offer.hasBonus == true {
                     badgeView(
                         icon: "star.fill",
                         text: "BONUS",
@@ -207,7 +194,7 @@ struct OfferDetailView: View {
                 infoRow(
                     icon: "repeat",
                     title: "Redemption Limit",
-                    value: "\(offer.redemptionLimit) per receipt"
+                    value: "\(offer.redemptionLimit.map { "\($0) per receipt" } ?? "No limit")"
                 )
                 
                 if let expiresAt = offer.expiresAt {
@@ -233,12 +220,6 @@ struct OfferDetailView: View {
                         .foregroundColor(.adaptiveTextSecondary)
                         .lineSpacing(4)
                 }
-            }
-            
-            if let details = offer.details {
-                Text(details)
-                    .font(.appCallout(.regular))
-                    .foregroundColor(.adaptiveTextSecondary)
             }
         }
         .padding(AppSpacing.xl)
@@ -284,7 +265,7 @@ struct OfferDetailView: View {
                     QuantitySelector(
                         quantity: $quantity,
                         minimum: 1,
-                        maximum: offer.redemptionLimit,
+                        maximum: offer.redemptionLimit ?? 99,
                         size: .medium
                     )
                 }
@@ -306,21 +287,53 @@ struct OfferDetailView: View {
             .padding(.vertical, AppSpacing.md)
             
             // Add/Update Button
-            PrimaryButton(
-                title: isInList ? "Update List" : "Add to List",
-                action: {
-                    if isInList {
+            if isInList {
+                HStack(spacing: AppSpacing.md) {
+                    // Remove Button
+                    Button {
                         if let item = appState.userListItems.first(where: { $0.offerId == offer.id }) {
-                            appState.updateQuantity(itemId: item.id, quantity: quantity)
+                            appState.removeFromList(item.id)
                         }
-                    } else {
-                        appState.addToList(offer: offer, quantity: quantity)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Remove")
+                                .font(.appHeadline(.semibold))
+                        }
+                        .foregroundColor(.appPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: AppSpacing.buttonHeight)
+                        .background(Color.appPrimary.opacity(0.12))
+                        .cornerRadius(AppSpacing.buttonCornerRadius)
                     }
-                    dismiss()
+                    .pressAnimation()
+                    
+                    // Update Button
+                    PrimaryButton(
+                        title: "Update List",
+                        action: {
+                            if let item = appState.userListItems.first(where: { $0.offerId == offer.id }) {
+                                appState.updateQuantity(itemId: item.id, quantity: quantity)
+                            }
+                            dismiss()
+                        }
+                    )
                 }
-            )
-            .padding(.horizontal, AppSpacing.lg)
-            .padding(.bottom, AppSpacing.lg)
+                .padding(.horizontal, AppSpacing.lg)
+                .padding(.bottom, AppSpacing.lg)
+            } else {
+                PrimaryButton(
+                    title: "Add to List",
+                    action: {
+                        appState.addToList(offer: offer, storeId: storeId, quantity: quantity)
+                        dismiss()
+                    }
+                )
+                .padding(.horizontal, AppSpacing.lg)
+                .padding(.bottom, AppSpacing.lg)
+            }
         }
         .background(Color.adaptiveCard)
         .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -2)
@@ -328,9 +341,11 @@ struct OfferDetailView: View {
 }
 
 #Preview {
+    let storeId = UUID()
     NavigationStack {
         OfferDetailView(
-            offer: MockData.shared.generateOffers()[0]
+            offer: Offer(name: "Tide PODS 81ct", cashback: 3.50, redemptionLimit: 2),
+            storeId: storeId
         )
         .environment(AppState.shared)
     }

@@ -36,9 +36,13 @@ class AppState {
     // MARK: - Transactions
     var transactions: [Transaction] = []
     
+    // MARK: - Withdrawals
+    var withdrawals: [WithdrawalRequest] = []
+    
     // MARK: - Loading States
     var isLoadingStores = false
     var isLoadingOffers = false
+    private var loadingOfferStoreIds: Set<UUID> = []  // Tracks in-flight offer loads to avoid duplicates
     
     // MARK: - Tab Selection
     var selectedTab: Tab = .home
@@ -68,7 +72,7 @@ class AppState {
         print("🔄 Starting to load data from Supabase...")
         
         do {
-            // Load stores from Supabase
+            // Load stores from Supabase (offers are loaded lazily when user enters a store)
             print("🔄 Fetching stores...")
             stores = try await storeService.fetchStoresWithOfferCounts()
             print("✅ Loaded \(stores.count) stores from Supabase:")
@@ -76,18 +80,7 @@ class AppState {
                 print("  - \(store.name) (\(store.offerCount ?? 0) offers)")
             }
             
-            // Load offers for each store
-            for store in stores {
-                print("🔄 Fetching offers for \(store.name)...")
-                let offers = try await offerService.fetchOffers(storeId: store.id)
-                offersByStore[store.id] = offers
-                print("✅ Loaded \(offers.count) offers for \(store.name)")
-            }
-            
-            print("✅ All data loaded successfully from Supabase!")
-            
-            // DO NOT auto-authenticate - user must log in
-            // The stores/offers are loaded but user must sign in to use the app
+            print("✅ Stores loaded — offers will load on demand when user enters a store")
             
         } catch {
             print("❌ Error loading Supabase data:")
@@ -96,6 +89,28 @@ class AppState {
         }
         
         isLoadingStores = false
+    }
+    
+    /// Loads offers for a specific store on demand (called when user navigates to a store).
+    /// Safe to call multiple times — skips if already loaded or currently loading.
+    func loadOffersIfNeeded(storeId: UUID) async {
+        // Skip if already loaded or currently loading
+        guard offersByStore[storeId] == nil, !loadingOfferStoreIds.contains(storeId) else { return }
+        
+        loadingOfferStoreIds.insert(storeId)
+        let storeName = stores.first(where: { $0.id == storeId })?.name ?? "Unknown"
+        
+        do {
+            print("🔄 Fetching offers for \(storeName)...")
+            let offers = try await offerService.fetchOffers(storeId: storeId)
+            offersByStore[storeId] = offers
+            print("✅ Loaded \(offers.count) offers for \(storeName)")
+        } catch {
+            print("❌ Failed to load offers for \(storeName): \(error)")
+            offersByStore[storeId] = []
+        }
+        
+        loadingOfferStoreIds.remove(storeId)
     }
     
     // MARK: - Authentication
@@ -150,6 +165,11 @@ class AppState {
             transactions = try await accountService.fetchTransactions(userId: user.id)
             print("✅ Loaded \(transactions.count) transactions")
             
+            // Load user's withdrawals
+            print("🔄 Loading user's withdrawals...")
+            withdrawals = try await accountService.fetchWithdrawals(userId: user.id)
+            print("✅ Loaded \(withdrawals.count) withdrawals")
+            
         } catch {
             print("❌ Login failed: \(error.localizedDescription)")
             throw error
@@ -202,6 +222,7 @@ class AppState {
             userListItems = []
             submissions = []
             transactions = []
+            withdrawals = []
             
         } catch {
             print("❌ Signup failed: \(error.localizedDescription)")
@@ -221,6 +242,7 @@ class AppState {
         userListItems = []
         submissions = []
         transactions = []
+        withdrawals = []
         
         print("✅ User logged out")
     }
@@ -230,7 +252,7 @@ class AppState {
         userListItems.contains { $0.offerId == offerId }
     }
     
-    func addToList(offer: Offer, quantity: Int = 1) {
+    func addToList(offer: Offer, storeId: UUID, quantity: Int = 1) {
         guard let userId = authService.currentUser?.id else {
             print("⚠️ Cannot add to list: User not authenticated")
             return
@@ -245,7 +267,7 @@ class AppState {
                     // Update quantity
                     let newQuantity = min(
                         userListItems[existingIndex].quantity + quantity,
-                        offer.redemptionLimit
+                        offer.redemptionLimit ?? 99
                     )
                     
                     print("🔄 Updating quantity for '\(offer.name)' to \(newQuantity)")
@@ -263,7 +285,7 @@ class AppState {
                     try await userListService.addToList(
                         userId: userId,
                         offerId: offer.id,
-                        storeId: offer.storeId,
+                        storeId: storeId,
                         quantity: quantity
                     )
                     
@@ -416,45 +438,43 @@ class AppState {
     
     // MARK: - Balance Management
     func requestWithdrawal(amount: Double) async throws {
+        print("🔴🔴🔴 [AppState] requestWithdrawal called with amount: \(amount)")
+        
         guard let userId = currentUser?.id,
               var user = currentUser,
               user.balance >= amount,
               amount >= 15.0 else {
+            print("🔴🔴🔴 [AppState] Guard failed — userId: \(String(describing: currentUser?.id)), balance: \(currentUser?.balance ?? -1), amount: \(amount)")
             throw NSError(domain: "AppState", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid withdrawal amount"])
         }
         
-        print("💳 Processing gift card withdrawal of \(amount.asCurrency)")
+        print("🔴🔴🔴 [AppState] Calling accountService.requestWithdrawal for userId: \(userId), amount: \(amount)")
         
-        // Simulate API call to process withdrawal
-        try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+        // Call Supabase to create withdrawal request, update balance, and record transaction
+        let withdrawalResult = try await accountService.requestWithdrawal(userId: userId, amount: amount)
         
-        // Update user balance
+        print("🔴🔴🔴 [AppState] accountService returned successfully! Withdrawal ID: \(withdrawalResult.id)")
+        
+        // Update local user balance
         user.balance -= amount
         user.totalWithdrawn += amount
         currentUser = user
         
-        // Create transaction record
-        let transaction = Transaction(
-            userId: userId,
-            type: .withdrawal,
-            amount: amount,
-            description: "Visa Gift Card - Link sent to email"
-        )
-        transactions.insert(transaction, at: 0)
+        // Add to local withdrawals list
+        withdrawals.insert(withdrawalResult, at: 0)
         
-        print("✅ Withdrawal processed successfully")
-        print("   New balance: \(user.balance.asCurrency)")
-        print("   Total withdrawn: \(user.totalWithdrawn.asCurrency)")
+        // Reload transactions from DB to stay in sync
+        do {
+            transactions = try await accountService.fetchTransactions(userId: userId)
+            print("🔴🔴🔴 [AppState] Reloaded \(transactions.count) transactions from DB")
+        } catch {
+            print("🔴🔴🔴 [AppState] Failed to reload transactions: \(error)")
+        }
         
-        // In production, this would:
-        // 1. Call backend API to create withdrawal request
-        // 2. Backend would send email with gift card selection link
-        // 3. User would receive email within 24 hours
+        print("🔴🔴🔴 [AppState] Withdrawal complete — new local balance: \(user.balance.asCurrency)")
         
         // Haptic feedback
-        await MainActor.run {
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(.success)
-        }
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
     }
 }

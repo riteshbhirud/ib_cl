@@ -164,4 +164,12 @@ class AuthService {
         
         await fetchUserProfile()
     }
+    
+    func updateEmail(newEmail: String) async throws {
+        try await client.auth.update(user: .init(email: newEmail))
+    }
+    
+    func updatePassword(newPassword: String) async throws {
+        try await client.auth.update(user: .init(password: newPassword))
+    }
 }

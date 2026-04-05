@@ -10,17 +10,17 @@ import Foundation
 struct Store: Identifiable, Codable, Hashable {
     let id: UUID
     let name: String
+    let slug: String?
     let logoUrl: String?
     let description: String?
-    let isActive: Bool
+    let active: Bool
     let sortOrder: Int
     let createdAt: Date
     var offerCount: Int?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, description
+        case id, name, slug, description, active
         case logoUrl = "logo_url"
-        case isActive = "is_active"
         case sortOrder = "sort_order"
         case createdAt = "created_at"
         case offerCount = "offer_count"
@@ -29,18 +29,20 @@ struct Store: Identifiable, Codable, Hashable {
     init(
         id: UUID = UUID(),
         name: String,
+        slug: String? = nil,
         logoUrl: String? = nil,
         description: String? = nil,
-        isActive: Bool = true,
+        active: Bool = true,
         sortOrder: Int = 0,
         createdAt: Date = Date(),
         offerCount: Int? = nil
     ) {
         self.id = id
         self.name = name
+        self.slug = slug
         self.logoUrl = logoUrl
         self.description = description
-        self.isActive = isActive
+        self.active = active
         self.sortOrder = sortOrder
         self.createdAt = createdAt
         self.offerCount = offerCount

@@ -15,34 +15,27 @@ struct OfferCard: View {
     @State private var isPressed = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+        VStack(alignment: .leading, spacing: 0) {
             // Image Section
             ZStack(alignment: .topTrailing) {
-                // Product Image with AsyncImage from database
+                // Product Image — contained with light background
                 Group {
                     if let imageUrl = offer.imageUrl, let url = URL(string: imageUrl) {
                         AsyncImage(url: url) { phase in
                             switch phase {
                             case .empty:
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.1))
-                                    .aspectRatio(1.0, contentMode: .fit)
-                                    .overlay(
-                                        ProgressView()
-                                    )
+                                Color.gray.opacity(0.06)
+                                    .overlay(ProgressView())
                             case .success(let image):
                                 image
                                     .resizable()
-                                    .scaledToFill()
-                                    .aspectRatio(1.0, contentMode: .fill)
-                                    .clipped()
+                                    .scaledToFit()
+                                    .padding(AppSpacing.md)
                             case .failure:
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.1))
-                                    .aspectRatio(1.0, contentMode: .fit)
+                                Color.gray.opacity(0.06)
                                     .overlay(
                                         Image(systemName: "photo")
-                                            .font(.system(size: 40))
+                                            .font(.system(size: 28))
                                             .foregroundColor(.gray.opacity(0.3))
                                     )
                             @unknown default:
@@ -50,100 +43,79 @@ struct OfferCard: View {
                             }
                         }
                     } else {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.1))
-                            .aspectRatio(1.0, contentMode: .fit)
+                        Color.gray.opacity(0.06)
                             .overlay(
                                 Image(systemName: "photo")
-                                    .font(.system(size: 40))
+                                    .font(.system(size: 28))
                                     .foregroundColor(.gray.opacity(0.3))
                             )
                     }
                 }
+                .frame(height: 120)
+                .frame(maxWidth: .infinity)
+                .background(Color.gray.opacity(0.04))
                 
                 // Badges Overlay
-                VStack(alignment: .trailing, spacing: AppSpacing.xs) {
-                    if offer.expiringSoon {
-                        HStack(spacing: 4) {
+                VStack(alignment: .trailing, spacing: 3) {
+                    if offer.expiringSoon == true {
+                        HStack(spacing: 3) {
                             Image(systemName: "clock.fill")
-                                .font(.system(size: 10, weight: .bold))
-                            Text("Expiring Soon")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .font(.system(size: 8, weight: .bold))
+                            Text("Expiring")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.orange, Color.orange.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .cornerRadius(8)
-                        .shadow(color: Color.orange.opacity(0.4), radius: 4, x: 0, y: 2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.orange)
+                        .cornerRadius(4)
                     }
                     
                     if let specialTag = offer.specialTag {
-                        HStack(spacing: 5) {
-                            Image(systemName: "gift.fill")
-                                .font(.system(size: 11, weight: .bold))
-                            Text(specialTag)
-                                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.2, green: 0.8, blue: 0.5),  // Bright mint green
-                                    Color(red: 0.1, green: 0.7, blue: 0.6)   // Emerald teal
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                        Text(specialTag)
+                            .font(.system(size: 8, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.2, green: 0.8, blue: 0.5),
+                                        Color(red: 0.1, green: 0.7, blue: 0.6)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
-                        .cornerRadius(8)
-                        .shadow(color: Color.green.opacity(0.5), radius: 5, x: 0, y: 2)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                        )
+                            .cornerRadius(4)
                     }
                     
-                    if offer.hasBonus {
-                        HStack(spacing: 4) {
+                    if offer.hasBonus == true {
+                        HStack(spacing: 3) {
                             Image(systemName: "star.fill")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.system(size: 8, weight: .bold))
                             Text("BONUS")
-                                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                                .font(.system(size: 9, weight: .heavy, design: .rounded))
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 1.0, green: 0.65, blue: 0.0),  // Golden orange
-                                    Color(red: 1.0, green: 0.5, blue: 0.0)    // Bright orange
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .cornerRadius(8)
-                        .shadow(color: Color.orange.opacity(0.5), radius: 5, x: 0, y: 2)
-                        .cornerRadius(6)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.orange)
+                        .cornerRadius(4)
                     }
                 }
-                .padding(AppSpacing.sm)
+                .padding(6)
             }
+            
+            // Divider
+            Rectangle()
+                .fill(Color.gray.opacity(0.1))
+                .frame(height: 1)
             
             // Info Section
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
                 Text(offer.name)
-                    .font(.appCallout(.medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.adaptiveTextPrimary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -151,19 +123,19 @@ struct OfferCard: View {
                 CashbackBadge(amount: offer.cashback, size: .small)
                 
                 if let requirement = offer.purchaseRequirement {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "info.circle.fill")
-                            .font(.system(size: 10))
+                            .font(.system(size: 9))
                         Text(requirement)
-                            .font(.appCaption2(.regular))
+                            .font(.system(size: 10))
                     }
                     .foregroundColor(.adaptiveTextSecondary)
                 }
             }
             .padding(.horizontal, AppSpacing.sm)
-            .padding(.bottom, AppSpacing.sm)
+            .padding(.vertical, AppSpacing.sm)
             
-            // Add Button
+            // Add/Remove Button
             Button(action: {
                 let generator = UIImpactFeedbackGenerator(style: .light)
                 generator.impactOccurred()
@@ -171,35 +143,34 @@ struct OfferCard: View {
                     onAddToList()
                 }
             }) {
-                HStack {
-                    Image(systemName: isInList ? "checkmark" : "plus")
-                        .font(.system(size: 14, weight: .semibold))
+                HStack(spacing: 6) {
+                    Image(systemName: isInList ? "minus" : "plus")
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.white)
-                        .frame(width: 24, height: 24)
-                        .background(isInList ? Color.appSuccess : Color.appPrimary)
+                        .frame(width: 20, height: 20)
+                        .background(isInList ? Color.appPrimary.opacity(0.6) : Color.appPrimary)
                         .clipShape(Circle())
                     
-                    Text(isInList ? "Added" : "Add to List")
-                        .font(.appFootnote(.semibold))
-                        .foregroundColor(isInList ? .appSuccess : .appPrimary)
+                    Text(isInList ? "Remove" : "Add to List")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(isInList ? .adaptiveTextSecondary : .appPrimary)
                     
                     Spacer()
                 }
-                .padding(AppSpacing.sm)
+                .padding(.horizontal, AppSpacing.sm)
+                .padding(.bottom, AppSpacing.sm)
             }
             .pressAnimation()
         }
         .background(Color.adaptiveCard)
         .cornerRadius(AppSpacing.cardCornerRadius)
-        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
         .scaleEffect(isPressed ? 0.97 : 1.0)
     }
 }
 
 #Preview {
-    let mockStore = MockData.shared.stores[0]
     let mockOffer = Offer(
-        storeId: mockStore.id,
         offerId: "test",
         slug: "tide-pods",
         name: "Tide PODS Laundry Detergent, 81ct",
@@ -213,15 +184,15 @@ struct OfferCard: View {
         hasBonus: true
     )
     
-    return VStack {
-        HStack(spacing: 16) {
+    ScrollView {
+        LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ], spacing: 12) {
             OfferCard(offer: mockOffer, isInList: false) {}
-                .frame(width: 160)
-            
             OfferCard(offer: mockOffer, isInList: true) {}
-                .frame(width: 160)
         }
+        .padding(.horizontal, 16)
     }
-    .padding()
     .background(Color.adaptiveBackground)
 }

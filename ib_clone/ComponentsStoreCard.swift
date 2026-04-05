@@ -78,14 +78,14 @@ struct StoreCard: View {
 }
 
 #Preview {
-    let mockStore = MockData.shared.stores[0]
+    let store = Store(name: "Walmart", slug: "walmart", description: "Save money. Live better.", offerCount: 12)
     
-    return VStack(spacing: 20) {
+    VStack(spacing: 20) {
         HStack(spacing: 16) {
-            StoreCard(store: mockStore)
+            StoreCard(store: store)
                 .frame(width: 150, height: 150)
             
-            StoreCard(store: mockStore, isFeatured: true)
+            StoreCard(store: store, isFeatured: true)
                 .frame(width: 180, height: 180)
         }
     }

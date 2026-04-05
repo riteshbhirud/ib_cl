@@ -10,6 +10,7 @@ import SwiftUI
 struct SignUpView: View {
     @Environment(AppState.self) private var appState
     @Binding var showSignUp: Bool
+    @Binding var showLogin: Bool
     
     @State private var fullName = ""
     @State private var email = ""
@@ -32,15 +33,24 @@ struct SignUpView: View {
             VStack(spacing: AppSpacing.xl) {
                 Spacer().frame(height: 20)
                 
-                // Header
-                VStack(spacing: AppSpacing.md) {
-                    Text("Create Account")
-                        .font(.appTitle1(.bold))
-                        .foregroundColor(.adaptiveTextPrimary)
+                // Logo and header
+                VStack(spacing: 16) {
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 72, height: 72)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
                     
-                    Text("Start earning cashback today!")
-                        .font(.appCallout(.regular))
-                        .foregroundColor(.adaptiveTextSecondary)
+                    VStack(spacing: 6) {
+                        Text("Create Account")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.adaptiveTextPrimary)
+                        
+                        Text("Start earning cashback today!")
+                            .font(.system(size: 15))
+                            .foregroundColor(.adaptiveTextSecondary)
+                    }
                 }
                 
                 // Form Fields
@@ -133,14 +143,17 @@ struct SignUpView: View {
                 // Sign In Link
                 HStack(spacing: 4) {
                     Text("Already have an account?")
-                        .font(.appCallout(.regular))
+                        .font(.system(size: 15))
                         .foregroundColor(.adaptiveTextSecondary)
                     
                     Button("Sign In") {
                         showSignUp = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            showLogin = true
+                        }
                     }
-                    .font(.appCallout(.semibold))
-                    .foregroundColor(.appPrimary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.appSecondary)
                 }
                 
                 Spacer()
@@ -148,6 +161,7 @@ struct SignUpView: View {
             .padding(AppSpacing.xl)
         }
         .background(Color.adaptiveBackground)
+        .navigationBarTitleDisplayMode(.inline)
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -170,6 +184,6 @@ struct SignUpView: View {
 }
 
 #Preview {
-    SignUpView(showSignUp: .constant(true))
+    SignUpView(showSignUp: .constant(true), showLogin: .constant(false))
         .environment(AppState.shared)
 }

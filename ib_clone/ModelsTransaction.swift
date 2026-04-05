@@ -12,11 +12,12 @@ struct Transaction: Identifiable, Codable {
     let userId: UUID
     let type: TransactionType
     let amount: Double
-    let description: String
+    let description: String?
     let date: Date
     let relatedSubmissionId: UUID?
     
     enum TransactionType: String, Codable {
+        case credit
         case earning
         case withdrawal
         case bonus
@@ -24,7 +25,7 @@ struct Transaction: Identifiable, Codable {
         
         var displayName: String {
             switch self {
-            case .earning: return "Cashback Earned"
+            case .credit, .earning: return "Cashback Earned"
             case .withdrawal: return "Withdrawal"
             case .bonus: return "Bonus"
             case .adjustment: return "Adjustment"
@@ -33,7 +34,7 @@ struct Transaction: Identifiable, Codable {
         
         var iconName: String {
             switch self {
-            case .earning: return "plus.circle.fill"
+            case .credit, .earning: return "plus.circle.fill"
             case .withdrawal: return "arrow.up.circle.fill"
             case .bonus: return "gift.fill"
             case .adjustment: return "pencil.circle.fill"
@@ -42,7 +43,7 @@ struct Transaction: Identifiable, Codable {
         
         var isPositive: Bool {
             switch self {
-            case .earning, .bonus, .adjustment:
+            case .credit, .earning, .bonus, .adjustment:
                 return true
             case .withdrawal:
                 return false
@@ -50,12 +51,19 @@ struct Transaction: Identifiable, Codable {
         }
     }
     
+    enum CodingKeys: String, CodingKey {
+        case id, type, amount, description
+        case userId = "user_id"
+        case date = "created_at"
+        case relatedSubmissionId = "submission_id"
+    }
+    
     init(
         id: UUID = UUID(),
         userId: UUID,
         type: TransactionType,
         amount: Double,
-        description: String,
+        description: String? = nil,
         date: Date = Date(),
         relatedSubmissionId: UUID? = nil
     ) {

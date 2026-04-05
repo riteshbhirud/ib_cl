@@ -52,7 +52,7 @@ struct TransactionRow: View {
             
             // Info
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                Text(transaction.description)
+                Text(transaction.description ?? transaction.type.displayName)
                     .font(.appCallout(.semibold))
                     .foregroundColor(.adaptiveTextPrimary)
                 

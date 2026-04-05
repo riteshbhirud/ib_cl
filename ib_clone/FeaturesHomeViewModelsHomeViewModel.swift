@@ -14,7 +14,6 @@ class HomeViewModel {
     
     var searchText = ""
     var isLoading = false
-    var featuredStores: [Store] = []
     
     var stores: [Store] {
         appState.stores
@@ -29,21 +28,9 @@ class HomeViewModel {
         }
     }
     
-    init() {
-        loadFeaturedStores()
-    }
-    
-    func loadFeaturedStores() {
-        // Take first 3 stores as featured
-        featuredStores = Array(stores.prefix(3))
-    }
-    
     func refreshStores() async {
         isLoading = true
-        
-        // Simulate API call
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        
+        await appState.loadSupabaseData()
         isLoading = false
     }
 }
